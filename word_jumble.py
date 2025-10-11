@@ -71,18 +71,67 @@ class WordJumbleApp:
 		if height <= 1:
 			height = self.root.winfo_screenheight()
 
-		# Display words in random positions
-		for word in self.current_words:
-			x = random.randint(100, width - 100)
-			y = random.randint(100, height - 100)
+		# Keep track of occupied areas
+		occupied_rects = []
 
-			text_id = self.canvas.create_text(
-				x, y,
-				text=word,
-				font=('Helvetica', 96, 'bold'),
-				fill='#ecf0f1'
-			)
-			self.word_ids.append((text_id, word))
+		# Display words in random positions without overlap
+		for word in self.current_words:
+			placed = False
+			attempts = 0
+			max_attempts = 100
+
+			while not placed and attempts < max_attempts:
+				x = random.randint(150, width - 150)
+				y = random.randint(150, height - 150)
+
+				# Create temporary text to get bounding box
+				temp_id = self.canvas.create_text(
+					x, y,
+					text=word,
+					font=('Helvetica', 96, 'bold'),
+					fill='#ecf0f1'
+				)
+
+				# Get bounding box with padding
+				bbox = self.canvas.bbox(temp_id)
+				padding = 30
+				new_rect = (
+					bbox[0] - padding,
+					bbox[1] - padding,
+					bbox[2] + padding,
+					bbox[3] + padding
+				)
+
+				# Check for overlap with existing words
+				overlap = False
+				for rect in occupied_rects:
+					if not (new_rect[2] < rect[0] or  # new is left of existing
+					        new_rect[0] > rect[2] or  # new is right of existing
+					        new_rect[3] < rect[1] or  # new is above existing
+					        new_rect[1] > rect[3]):  # new is below existing
+						overlap = True
+						break
+
+				if not overlap:
+					# Position is good, keep the text
+					occupied_rects.append(new_rect)
+					self.word_ids.append((temp_id, word))
+					placed = True
+				else:
+					# Position overlaps, delete and try again
+					self.canvas.delete(temp_id)
+
+				attempts += 1
+
+			# If we couldn't place the word after max attempts, place it anyway
+			if not placed:
+				text_id = self.canvas.create_text(
+					x, y,
+					text=word,
+					font=('Helvetica', 96, 'bold'),
+					fill='#ecf0f1'
+				)
+				self.word_ids.append((text_id, word))
 
 	def jumble_current_words(self):
 		"""Jumble the currently displayed words"""
